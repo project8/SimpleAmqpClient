@@ -1,6 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-PROJECT(SimpleAmqpClient)
+### MANTIS EDIT: THIS HAS BEEN MOVED BELOW TO INCLUDE THE VERSION NUMBER
+#PROJECT(SimpleAmqpClient)
 
 # Follow all steps below in order to calculate new ABI version when updating the library
 # NOTE: THIS IS UNRELATED to the actual project version
@@ -21,6 +22,14 @@ math(EXPR SAC_SOVERSION_PATCH "${SAC_SOVERSION_REVISION}")
 
 set(SAC_VERSION ${SAC_SOVERSION_MAJOR}.${SAC_SOVERSION_MINOR}.${SAC_SOVERSION_PATCH})
 set(SAC_SOVERSION ${SAC_SOVERSION_MAJOR})
+
+cmake_policy( SET CMP0048 NEW ) # version in project()
+PROJECT(SimpleAmqpClient VERSION "${SAC_VERSION}")
+
+### ADDED FROM MANTIS
+list( APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/Scarab/cmake )
+include( PackageBuilder )
+pbuilder_prepare_project()
 
 file(STRINGS src/SimpleAmqpClient/Version.h _API_VERSION_MAJOR REGEX "^#define SIMPLEAMQPCLIENT_VERSION_MAJOR [0-9]+$")
 file(STRINGS src/SimpleAmqpClient/Version.h _API_VERSION_MINOR REGEX "^#define SIMPLEAMQPCLIENT_VERSION_MINOR [0-9]+$")
@@ -157,9 +166,12 @@ SET(PROJECT_VERSION ${SAC_VERSION})
 INCLUDE(UseDoxygen)
 
 INSTALL(TARGETS SimpleAmqpClient
-    RUNTIME DESTINATION bin
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION ${BIN_INSTALL_DIR}
+    ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+    LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+#    RUNTIME DESTINATION bin
+#    ARCHIVE DESTINATION lib
+#    LIBRARY DESTINATION lib
     )
 
 INSTALL(FILES
@@ -178,13 +190,14 @@ INSTALL(FILES
     src/SimpleAmqpClient/Table.h
     src/SimpleAmqpClient/Util.h
     src/SimpleAmqpClient/Version.h
-    DESTINATION include/SimpleAmqpClient
+    DESTINATION ${INCLUDE_INSTALL_DIR}/SimpleAmqpClient
+    #DESTINATION include/SimpleAmqpClient
     )
 
 set(prefix ${CMAKE_INSTALL_PREFIX})
 set(exec_prefix "\${prefix}")
-set(libdir "\${exec_prefix}/lib")
-set(includedir "\${prefix}/include")
+set(libdir "\${exec_prefix}/${LIB_INSTALL_SUBDIR}")
+set(includedir "\${prefix}/${INCLUDE_INSTALL_SUBDIR}")
 
 foreach(_lib ${Boost_LIBRARIES})
     get_filename_component(_LIBPATH ${_lib} PATH)
@@ -203,5 +216,5 @@ configure_file(libSimpleAmqpClient.pc.in ${CMAKE_CURRENT_BINARY_DIR}/libSimpleAm
 
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/libSimpleAmqpClient.pc
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_SUBDIR}/pkgconfig
     )
