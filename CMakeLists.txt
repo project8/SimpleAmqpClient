@@ -1,8 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-### MANTIS EDIT: THIS HAS BEEN MOVED BELOW TO INCLUDE THE VERSION NUMBER
-#PROJECT(SimpleAmqpClient)
-
 # Follow all steps below in order to calculate new ABI version when updating the library
 # NOTE: THIS IS UNRELATED to the actual project version
 #
@@ -26,8 +23,8 @@ set(SAC_SOVERSION ${SAC_SOVERSION_MAJOR})
 cmake_policy( SET CMP0048 NEW ) # version in project()
 PROJECT(SimpleAmqpClient VERSION "${SAC_VERSION}")
 
-### ADDED FROM MANTIS
-list( APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/Scarab/cmake )
+### ADDED FROM DRIPLINE
+list( APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/scarab/cmake )
 include( PackageBuilder )
 pbuilder_prepare_project()
 
@@ -173,6 +170,9 @@ INSTALL(TARGETS SimpleAmqpClient
 #    ARCHIVE DESTINATION lib
 #    LIBRARY DESTINATION lib
     )
+set_property( GLOBAL APPEND PROPERTY ${PROJECT_NAME}_LIBRARIES SimpleAmqpClient )
+set_target_properties( SimpleAmqpClient PROPERTIES INSTALL_NAME_DIR ${LIB_INSTALL_DIR} )
+    
 
 INSTALL(FILES
     src/SimpleAmqpClient/AmqpException.h
@@ -218,3 +218,6 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/libSimpleAmqpClient.pc
     DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_SUBDIR}/pkgconfig
     )
+
+### ADDED FROM DRIPLINE
+pbuilder_variables_for_parent()
