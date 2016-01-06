@@ -24,7 +24,7 @@ cmake_policy( SET CMP0048 NEW ) # version in project()
 PROJECT(SimpleAmqpClient VERSION "${SAC_VERSION}")
 
 ### ADDED FROM DRIPLINE
-list( APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/scarab/cmake )
+list( APPEND CMAKE_MODULE_PATH ${PBUILDER_DIR} )
 include( PackageBuilder )
 pbuilder_prepare_project()
 
