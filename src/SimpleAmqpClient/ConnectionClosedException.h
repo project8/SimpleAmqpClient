@@ -1,6 +1,5 @@
-/* vim:set ft=cpp ts=4 sw=4 sts=4 et cindent: */
-#ifndef CONNECTION_CLOSED_EXCEPTION_H
-#define CONNECTION_CLOSED_EXCEPTION_H
+#ifndef SIMPLEAMQPCLIENT_CONNECTIONCLOSEDEXCEPTION_H
+#define SIMPLEAMQPCLIENT_CONNECTIONCLOSEDEXCEPTION_H
 /*
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MIT
@@ -31,14 +30,12 @@
 
 #include <stdexcept>
 
-namespace AmqpClient
-{
+namespace AmqpClient {
 
-class ConnectionClosedException : public std::runtime_error
-{
-public:
-    explicit ConnectionClosedException() :
-        std::runtime_error("Connection is closed") {}
+class ConnectionClosedException : public std::runtime_error {
+ public:
+  explicit ConnectionClosedException()
+      : std::runtime_error("Connection is closed") {}
 };
-} // namespace AmqpClient
-#endif // CONNECTION_CLOSED_EXCEPTION_H
+}  // namespace AmqpClient
+#endif  // SIMPLEAMQPCLIENT_CONNECTIONCLOSEDEXCEPTION_H

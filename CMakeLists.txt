@@ -40,6 +40,7 @@ set(SAC_APIVERSION ${_API_VERSION_MAJOR}.${_API_VERSION_MINOR}.${_API_VERSION_PA
 
 FIND_PACKAGE(Boost 1.47.0 COMPONENTS chrono system REQUIRED)
 INCLUDE_DIRECTORIES(SYSTEM ${Boost_INCLUDE_DIRS})
+LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
 
 SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Modules)
 FIND_PACKAGE(Rabbitmqc REQUIRED)
@@ -68,6 +69,10 @@ endif ()
 
 INCLUDE_DIRECTORIES(BEFORE src
     ${CMAKE_CURRENT_BINARY_DIR})
+
+if (WIN32)
+    set(SOCKET_LIBRARY ws2_32)
+endif ()
 
 option(BUILD_SHARED_LIBS "Build SimpleAmqpClient as a shared library" ON)
 
@@ -125,34 +130,29 @@ else ()
   set_target_properties(SimpleAmqpClient PROPERTIES VERSION ${SAC_VERSION} SOVERSION ${SAC_SOVERSION})
 endif ()
 
-
-#ADD_EXECUTABLE(simple_connect examples/simple_connect.cpp)
-#TARGET_LINK_LIBRARIES(simple_connect SimpleAmqpClient)
-#SET_TARGET_PROPERTIES(simple_connect PROPERTIES
-#	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-#
-#ADD_EXECUTABLE(consume_with_timeout examples/consume_with_timeout.cpp)
-#TARGET_LINK_LIBRARIES(consume_with_timeout SimpleAmqpClient ${Boost_LIBRARIES})
-#SET_TARGET_PROPERTIES(consume_with_timeout PROPERTIES
-#	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-#
-#ADD_EXECUTABLE(envelope_test examples/envelope_test.cpp)
-#TARGET_LINK_LIBRARIES(envelope_test SimpleAmqpClient)
-#SET_TARGET_PROPERTIES(envelope_test PROPERTIES
-#	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-#
-#ADD_EXECUTABLE(basic_return_test examples/basic_return_test.cpp)
-#TARGET_LINK_LIBRARIES(basic_return_test SimpleAmqpClient)
-#SET_TARGET_PROPERTIES(basic_return_test PROPERTIES
-#	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-
 # Some smoke tests:
 
 option(ENABLE_TESTING "Enable smoke tests" OFF)
 
 if (ENABLE_TESTING)
     enable_testing()
-    add_subdirectory(third-party/gtest-1.7.0)
+
+    set(BUILD_GTEST ON)
+    set(BUILD_GMOCK OFF)
+
+    # This only affects targets declared after this.
+    set(BUILD_SHARED_LIBS OFF)
+
+    mark_as_advanced(BUILD_GMOCK)
+    mark_as_advanced(BUILD_GTEST)
+    mark_as_advanced(gmock_build_tests)
+    mark_as_advanced(gtest_build_samples)
+    mark_as_advanced(gtest_build_tests)
+    mark_as_advanced(gtest_disable_pthreads)
+    mark_as_advanced(gtest_force_shared_crt)
+    mark_as_advanced(gtest_hide_internal_symbols)
+
+    add_subdirectory(third-party/googletest)
     add_subdirectory(testing)
 endif (ENABLE_TESTING)
 
