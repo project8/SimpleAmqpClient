@@ -103,10 +103,9 @@ Channel::ptr_t Channel::CreateSecureFromUri(
                         path_to_client_key, path_to_client_cert, info.port,
                         std::string(info.user), std::string(info.password),
                         std::string(info.vhost), frame_max, verify_hostname);
-  } else {
-    throw std::runtime_error(
-        "CreateSecureFromUri only supports SSL-enabled URIs.");
   }
+  throw std::runtime_error(
+      "CreateSecureFromUri only supports SSL-enabled URIs.");
 }
 
 Channel::Channel(const std::string &host, int port, const std::string &username,
@@ -199,6 +198,10 @@ Channel::Channel(const std::string &, int, const std::string &,
 Channel::~Channel() {
   amqp_connection_close(m_impl->m_connection, AMQP_REPLY_SUCCESS);
   amqp_destroy_connection(m_impl->m_connection);
+}
+
+int Channel::GetSocketFD() const {
+  return amqp_get_sockfd(m_impl->m_connection);
 }
 
 void Channel::DeclareExchange(const std::string &exchange_name,
@@ -460,6 +463,10 @@ void Channel::BasicAck(const Envelope::ptr_t &message) {
 }
 
 void Channel::BasicAck(const Envelope::DeliveryInfo &info) {
+  BasicAck(info, false);
+}
+
+void Channel::BasicAck(const Envelope::DeliveryInfo &info, bool multiple) {
   m_impl->CheckIsConnected();
   // Delivery tag is local to the channel, so its important to use
   // that channel, sadly this can cause the channel to throw an exception
@@ -472,7 +479,7 @@ void Channel::BasicAck(const Envelope::DeliveryInfo &info) {
   }
 
   m_impl->CheckForError(
-      amqp_basic_ack(m_impl->m_connection, channel, info.delivery_tag, false));
+      amqp_basic_ack(m_impl->m_connection, channel, info.delivery_tag, multiple));
 }
 
 void Channel::BasicReject(const Envelope::ptr_t &message, bool requeue,
