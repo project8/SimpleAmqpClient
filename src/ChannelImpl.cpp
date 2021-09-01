@@ -37,34 +37,92 @@
 #include <sys/types.h>
 #endif
 
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/array.hpp>
+
 #include "SimpleAmqpClient/AmqpException.h"
 #include "SimpleAmqpClient/AmqpLibraryException.h"
 #include "SimpleAmqpClient/AmqpResponseLibraryException.h"
 #include "SimpleAmqpClient/ChannelImpl.h"
 #include "SimpleAmqpClient/ConnectionClosedException.h"
 #include "SimpleAmqpClient/ConsumerTagNotFoundException.h"
-
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/array.hpp>
-#include <boost/lexical_cast.hpp>
-
+#include "SimpleAmqpClient/TableImpl.h"
+#define BOOST_BIND_GLOBAL_PLACEHOLDERS
 #include <string.h>
+
+#include <boost/bind.hpp>
+#include <boost/lexical_cast.hpp>
 
 #define BROKER_HEARTBEAT 0
 
 namespace AmqpClient {
-namespace Detail {
 
-ChannelImpl::ChannelImpl() : m_last_used_channel(0), m_is_connected(false) {
+namespace {
+
+std::string BytesToString(amqp_bytes_t bytes) {
+  return std::string(reinterpret_cast<char *>(bytes.bytes), bytes.len);
+}
+
+void SetMessageProperties(BasicMessage &mes,
+                          const amqp_basic_properties_t &props) {
+  if (0 != (props._flags & AMQP_BASIC_CONTENT_TYPE_FLAG)) {
+    mes.ContentType(BytesToString(props.content_type));
+  }
+  if (0 != (props._flags & AMQP_BASIC_CONTENT_ENCODING_FLAG)) {
+    mes.ContentEncoding(BytesToString(props.content_encoding));
+  }
+  if (0 != (props._flags & AMQP_BASIC_DELIVERY_MODE_FLAG)) {
+    mes.DeliveryMode(
+        static_cast<BasicMessage::delivery_mode_t>(props.delivery_mode));
+  }
+  if (0 != (props._flags & AMQP_BASIC_PRIORITY_FLAG)) {
+    mes.Priority(props.priority);
+  }
+  if (0 != (props._flags & AMQP_BASIC_CORRELATION_ID_FLAG)) {
+    mes.CorrelationId(BytesToString(props.correlation_id));
+  }
+  if (0 != (props._flags & AMQP_BASIC_REPLY_TO_FLAG)) {
+    mes.ReplyTo(BytesToString(props.reply_to));
+  }
+  if (0 != (props._flags & AMQP_BASIC_EXPIRATION_FLAG)) {
+    mes.Expiration(BytesToString(props.expiration));
+  }
+  if (0 != (props._flags & AMQP_BASIC_MESSAGE_ID_FLAG)) {
+    mes.MessageId(BytesToString(props.message_id));
+  }
+  if (0 != (props._flags & AMQP_BASIC_TIMESTAMP_FLAG)) {
+    mes.Timestamp(props.timestamp);
+  }
+  if (0 != (props._flags & AMQP_BASIC_TYPE_FLAG)) {
+    mes.Type(BytesToString(props.type));
+  }
+  if (0 != (props._flags & AMQP_BASIC_USER_ID_FLAG)) {
+    mes.UserId(BytesToString(props.user_id));
+  }
+  if (0 != (props._flags & AMQP_BASIC_APP_ID_FLAG)) {
+    mes.AppId(BytesToString(props.app_id));
+  }
+  if (0 != (props._flags & AMQP_BASIC_CLUSTER_ID_FLAG)) {
+    mes.ClusterId(BytesToString(props.cluster_id));
+  }
+  if (0 != (props._flags & AMQP_BASIC_HEADERS_FLAG)) {
+    mes.HeaderTable(Detail::TableValueImpl::CreateTable(props.headers));
+  }
+}
+}  // namespace
+
+Channel::ChannelImpl::ChannelImpl()
+    : m_last_used_channel(0), m_is_connected(false) {
   m_channels.push_back(CS_Used);
 }
 
-ChannelImpl::~ChannelImpl() {}
+Channel::ChannelImpl::~ChannelImpl() {}
 
-void ChannelImpl::DoLogin(const std::string &username,
-                          const std::string &password, const std::string &vhost,
-                          int frame_max) {
+void Channel::ChannelImpl::DoLogin(const std::string &username,
+                                   const std::string &password,
+                                   const std::string &vhost, int frame_max,
+                                   bool sasl_external) {
   amqp_table_entry_t capabilties[1];
   amqp_table_entry_t capability_entry;
   amqp_table_t client_properties;
@@ -82,16 +140,23 @@ void ChannelImpl::DoLogin(const std::string &username,
   client_properties.num_entries = 1;
   client_properties.entries = &capability_entry;
 
-  CheckRpcReply(
-      0, amqp_login_with_properties(m_connection, vhost.c_str(), 0, frame_max,
-                                    BROKER_HEARTBEAT, &client_properties,
-                                    AMQP_SASL_METHOD_PLAIN, username.c_str(),
-                                    password.c_str()));
+  if (sasl_external) {
+    CheckRpcReply(0, amqp_login_with_properties(
+                         m_connection, vhost.c_str(), 0, frame_max,
+                         BROKER_HEARTBEAT, &client_properties,
+                         AMQP_SASL_METHOD_EXTERNAL, username.c_str()));
+  } else {
+    CheckRpcReply(
+        0, amqp_login_with_properties(m_connection, vhost.c_str(), 0, frame_max,
+                                      BROKER_HEARTBEAT, &client_properties,
+                                      AMQP_SASL_METHOD_PLAIN, username.c_str(),
+                                      password.c_str()));
+  }
 
   m_brokerVersion = ComputeBrokerVersion(m_connection);
 }
 
-amqp_channel_t ChannelImpl::GetNextChannelId() {
+amqp_channel_t Channel::ChannelImpl::GetNextChannelId() {
   channel_state_list_t::iterator unused_channel =
       std::find(m_channels.begin(), m_channels.end(), CS_Closed);
 
@@ -111,7 +176,7 @@ amqp_channel_t ChannelImpl::GetNextChannelId() {
   return unused_channel - m_channels.begin();
 }
 
-amqp_channel_t ChannelImpl::CreateNewChannel() {
+amqp_channel_t Channel::ChannelImpl::CreateNewChannel() {
   amqp_channel_t new_channel = GetNextChannelId();
 
   static const boost::array<boost::uint32_t, 1> OPEN_OK = {
@@ -131,7 +196,7 @@ amqp_channel_t ChannelImpl::CreateNewChannel() {
   return new_channel;
 }
 
-amqp_channel_t ChannelImpl::GetChannel() {
+amqp_channel_t Channel::ChannelImpl::GetChannel() {
   if (CS_Open == m_channels.at(m_last_used_channel)) {
     m_channels[m_last_used_channel] = CS_Used;
     return m_last_used_channel;
@@ -150,16 +215,16 @@ amqp_channel_t ChannelImpl::GetChannel() {
   return it - m_channels.begin();
 }
 
-void ChannelImpl::ReturnChannel(amqp_channel_t channel) {
+void Channel::ChannelImpl::ReturnChannel(amqp_channel_t channel) {
   m_channels.at(channel) = CS_Open;
   m_last_used_channel = channel;
 }
 
-bool ChannelImpl::IsChannelOpen(amqp_channel_t channel) {
+bool Channel::ChannelImpl::IsChannelOpen(amqp_channel_t channel) {
   return CS_Closed != m_channels.at(channel);
 }
 
-void ChannelImpl::FinishCloseChannel(amqp_channel_t channel) {
+void Channel::ChannelImpl::FinishCloseChannel(amqp_channel_t channel) {
   m_channels.at(channel) = CS_Closed;
 
   amqp_channel_close_ok_t close_ok;
@@ -167,14 +232,14 @@ void ChannelImpl::FinishCloseChannel(amqp_channel_t channel) {
                                  AMQP_CHANNEL_CLOSE_OK_METHOD, &close_ok));
 }
 
-void ChannelImpl::FinishCloseConnection() {
+void Channel::ChannelImpl::FinishCloseConnection() {
   SetIsConnected(false);
   amqp_connection_close_ok_t close_ok;
   amqp_send_method(m_connection, 0, AMQP_CONNECTION_CLOSE_OK_METHOD, &close_ok);
 }
 
-void ChannelImpl::CheckRpcReply(amqp_channel_t channel,
-                                const amqp_rpc_reply_t &reply) {
+void Channel::ChannelImpl::CheckRpcReply(amqp_channel_t channel,
+                                         const amqp_rpc_reply_t &reply) {
   switch (reply.reply_type) {
     case AMQP_RESPONSE_NORMAL:
       return;
@@ -199,13 +264,13 @@ void ChannelImpl::CheckRpcReply(amqp_channel_t channel,
   }
 }
 
-void ChannelImpl::CheckForError(int ret) {
+void Channel::ChannelImpl::CheckForError(int ret) {
   if (ret < 0) {
     throw AmqpLibraryException::CreateException(ret);
   }
 }
 
-MessageReturnedException ChannelImpl::CreateMessageReturnedException(
+MessageReturnedException Channel::ChannelImpl::CreateMessageReturnedException(
     amqp_basic_return_t &return_method, amqp_channel_t channel) {
   const int reply_code = return_method.reply_code;
   const std::string reply_text((char *)return_method.reply_text.bytes,
@@ -219,16 +284,17 @@ MessageReturnedException ChannelImpl::CreateMessageReturnedException(
                                   routing_key);
 }
 
-BasicMessage::ptr_t ChannelImpl::ReadContent(amqp_channel_t channel) {
+BasicMessage::ptr_t Channel::ChannelImpl::ReadContent(amqp_channel_t channel) {
   amqp_frame_t frame;
 
   GetNextFrameOnChannel(channel, frame);
 
-  if (frame.frame_type != AMQP_FRAME_HEADER)
+  if (frame.frame_type != AMQP_FRAME_HEADER) {
     // TODO: We should connection.close here
     throw std::runtime_error(
         "Channel::BasicConsumeMessage: received unexpected frame type (was "
         "expected AMQP_FRAME_HEADER)");
+  }
 
   // The memory for this is allocated in a pool associated with the connection
   // The BasicMessage constructor does a deep copy of the properties structure
@@ -243,7 +309,8 @@ BasicMessage::ptr_t ChannelImpl::ReadContent(amqp_channel_t channel) {
   size_t body_size = static_cast<size_t>(frame.payload.properties.body_size);
   size_t received_size = 0;
 
-  amqp_bytes_t body = amqp_bytes_malloc(body_size);
+  BasicMessage::ptr_t message = BasicMessage::Create();
+  message->Body().reserve(body_size);
 
   // frame #3 and up:
   while (received_size < body_size) {
@@ -255,16 +322,19 @@ BasicMessage::ptr_t ChannelImpl::ReadContent(amqp_channel_t channel) {
           "Channel::BasicConsumeMessage: received unexpected frame type (was "
           "expecting AMQP_FRAME_BODY)");
 
-    void *body_ptr = reinterpret_cast<char *>(body.bytes) + received_size;
-    memcpy(body_ptr, frame.payload.body_fragment.bytes,
-           frame.payload.body_fragment.len);
+    message->Body().append(
+        reinterpret_cast<char *>(frame.payload.body_fragment.bytes),
+        frame.payload.body_fragment.len);
     received_size += frame.payload.body_fragment.len;
   }
-  return BasicMessage::Create(body, properties);
+
+  SetMessageProperties(*message, *properties);
+
+  return message;
 }
 
-void ChannelImpl::CheckFrameForClose(amqp_frame_t &frame,
-                                     amqp_channel_t channel) {
+void Channel::ChannelImpl::CheckFrameForClose(amqp_frame_t &frame,
+                                              amqp_channel_t channel) {
   if (frame.frame_type == AMQP_FRAME_METHOD) {
     switch (frame.payload.method.id) {
       case AMQP_CHANNEL_CLOSE_METHOD:
@@ -282,12 +352,13 @@ void ChannelImpl::CheckFrameForClose(amqp_frame_t &frame,
   }
 }
 
-void ChannelImpl::AddConsumer(const std::string &consumer_tag,
-                              amqp_channel_t channel) {
+void Channel::ChannelImpl::AddConsumer(const std::string &consumer_tag,
+                                       amqp_channel_t channel) {
   m_consumer_channel_map.insert(std::make_pair(consumer_tag, channel));
 }
 
-amqp_channel_t ChannelImpl::RemoveConsumer(const std::string &consumer_tag) {
+amqp_channel_t Channel::ChannelImpl::RemoveConsumer(
+    const std::string &consumer_tag) {
   std::map<std::string, amqp_channel_t>::iterator it =
       m_consumer_channel_map.find(consumer_tag);
   if (it == m_consumer_channel_map.end()) {
@@ -301,7 +372,7 @@ amqp_channel_t ChannelImpl::RemoveConsumer(const std::string &consumer_tag) {
   return result;
 }
 
-amqp_channel_t ChannelImpl::GetConsumerChannel(
+amqp_channel_t Channel::ChannelImpl::GetConsumerChannel(
     const std::string &consumer_tag) {
   std::map<std::string, amqp_channel_t>::const_iterator it =
       m_consumer_channel_map.find(consumer_tag);
@@ -311,7 +382,8 @@ amqp_channel_t ChannelImpl::GetConsumerChannel(
   return it->second;
 }
 
-std::vector<amqp_channel_t> ChannelImpl::GetAllConsumerChannels() const {
+std::vector<amqp_channel_t> Channel::ChannelImpl::GetAllConsumerChannels()
+    const {
   std::vector<amqp_channel_t> ret;
   for (consumer_map_t::const_iterator it = m_consumer_channel_map.begin();
        it != m_consumer_channel_map.end(); ++it) {
@@ -321,18 +393,20 @@ std::vector<amqp_channel_t> ChannelImpl::GetAllConsumerChannels() const {
   return ret;
 }
 
-bool ChannelImpl::CheckForQueuedMessageOnChannel(amqp_channel_t channel) const {
+bool Channel::ChannelImpl::CheckForQueuedMessageOnChannel(
+    amqp_channel_t channel) const {
   frame_queue_t::const_iterator it =
       std::find_if(m_frame_queue.begin(), m_frame_queue.end(),
-                   boost::bind(&ChannelImpl::is_method_on_channel, _1,
+                   boost::bind(&Channel::ChannelImpl::is_method_on_channel, _1,
                                AMQP_BASIC_DELIVER_METHOD, channel));
 
   if (it == m_frame_queue.end()) {
     return false;
   }
 
-  it = std::find_if(it + 1, m_frame_queue.end(),
-                    boost::bind(&ChannelImpl::is_on_channel, _1, channel));
+  it = std::find_if(
+      it + 1, m_frame_queue.end(),
+      boost::bind(&Channel::ChannelImpl::is_on_channel, _1, channel));
 
   if (it == m_frame_queue.end()) {
     return false;
@@ -345,8 +419,9 @@ bool ChannelImpl::CheckForQueuedMessageOnChannel(amqp_channel_t channel) const {
   uint64_t body_received = 0;
 
   while (body_received < body_length) {
-    it = std::find_if(it + 1, m_frame_queue.end(),
-                      boost::bind(&ChannelImpl::is_on_channel, _1, channel));
+    it = std::find_if(
+        it + 1, m_frame_queue.end(),
+        boost::bind(&Channel::ChannelImpl::is_on_channel, _1, channel));
 
     if (it == m_frame_queue.end()) {
       return false;
@@ -360,7 +435,7 @@ bool ChannelImpl::CheckForQueuedMessageOnChannel(amqp_channel_t channel) const {
   return true;
 }
 
-void ChannelImpl::AddToFrameQueue(const amqp_frame_t &frame) {
+void Channel::ChannelImpl::AddToFrameQueue(const amqp_frame_t &frame) {
   m_frame_queue.push_back(frame);
 
   if (CheckForQueuedMessageOnChannel(frame.channel)) {
@@ -375,8 +450,8 @@ void ChannelImpl::AddToFrameQueue(const amqp_frame_t &frame) {
   }
 }
 
-bool ChannelImpl::GetNextFrameFromBroker(amqp_frame_t &frame,
-                                         boost::chrono::microseconds timeout) {
+bool Channel::ChannelImpl::GetNextFrameFromBroker(
+    amqp_frame_t &frame, boost::chrono::microseconds timeout) {
   struct timeval *tvp = NULL;
   struct timeval tv_timeout;
   memset(&tv_timeout, 0, sizeof(tv_timeout));
@@ -408,12 +483,12 @@ bool ChannelImpl::GetNextFrameFromBroker(amqp_frame_t &frame,
   return true;
 }
 
-bool ChannelImpl::GetNextFrameOnChannel(amqp_channel_t channel,
-                                        amqp_frame_t &frame,
-                                        boost::chrono::microseconds timeout) {
-  frame_queue_t::iterator it =
-      std::find_if(m_frame_queue.begin(), m_frame_queue.end(),
-                   boost::bind(&ChannelImpl::is_on_channel, _1, channel));
+bool Channel::ChannelImpl::GetNextFrameOnChannel(
+    amqp_channel_t channel, amqp_frame_t &frame,
+    boost::chrono::microseconds timeout) {
+  frame_queue_t::iterator it = std::find_if(
+      m_frame_queue.begin(), m_frame_queue.end(),
+      boost::bind(&Channel::ChannelImpl::is_on_channel, _1, channel));
 
   if (m_frame_queue.end() != it) {
     frame = *it;
@@ -432,15 +507,17 @@ bool ChannelImpl::GetNextFrameOnChannel(amqp_channel_t channel,
   return GetNextFrameFromBrokerOnChannel(channels, frame, timeout);
 }
 
-void ChannelImpl::MaybeReleaseBuffersOnChannel(amqp_channel_t channel) {
+void Channel::ChannelImpl::MaybeReleaseBuffersOnChannel(
+    amqp_channel_t channel) {
   if (m_frame_queue.end() ==
-      std::find_if(m_frame_queue.begin(), m_frame_queue.end(),
-                   boost::bind(&ChannelImpl::is_on_channel, _1, channel))) {
+      std::find_if(
+          m_frame_queue.begin(), m_frame_queue.end(),
+          boost::bind(&Channel::ChannelImpl::is_on_channel, _1, channel))) {
     amqp_maybe_release_buffers_on_channel(m_connection, channel);
   }
 }
 
-void ChannelImpl::CheckIsConnected() {
+void Channel::ChannelImpl::CheckIsConnected() {
   if (!m_is_connected) {
     throw ConnectionClosedException();
   }
@@ -455,9 +532,9 @@ bool bytesEqual(amqp_bytes_t r, amqp_bytes_t l) {
   }
   return false;
 }
-}
+}  // namespace
 
-boost::uint32_t ChannelImpl::ComputeBrokerVersion(
+boost::uint32_t Channel::ChannelImpl::ComputeBrokerVersion(
     amqp_connection_state_t state) {
   const amqp_table_t *properties = amqp_get_server_properties(state);
   const amqp_bytes_t version = amqp_cstring_bytes("version");
@@ -491,5 +568,4 @@ boost::uint32_t ChannelImpl::ComputeBrokerVersion(
          (version_patch & 0xFF);
 }
 
-}  // namespace Detail
 }  // namespace AmqpClient

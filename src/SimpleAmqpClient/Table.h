@@ -28,19 +28,22 @@
  * ***** END LICENSE BLOCK *****
  */
 
-#include "SimpleAmqpClient/Util.h"
-
 #include <boost/cstdint.hpp>
 #include <boost/scoped_ptr.hpp>
-
+#include <ctime>
 #include <map>
 #include <string>
 #include <vector>
+
+#include "SimpleAmqpClient/Util.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4251)
 #endif
+
+/// @file SimpleAmqpClient/Table.h
+/// The AmqpClient::TableValue variant is defined in this header file
 
 namespace AmqpClient {
 
@@ -80,21 +83,21 @@ class SIMPLEAMQPCLIENT_EXPORT TableValue {
 
   /** Types enumeration */
   enum ValueType {
-    VT_void = 0,    //< void type
-    VT_bool = 1,    //< boolean type
-    VT_int8 = 2,    //< 1-byte/char signed type
-    VT_int16 = 3,   //< 2-byte/short signed type
-    VT_int32 = 4,   //< 4-byte/int signed type
-    VT_int64 = 5,   //< 8-byte/long long int signed type
-    VT_float = 6,   //< single-precision floating point type
-    VT_double = 7,  //< double-precision floating point type
-    VT_string = 8,  //< string type
-    VT_array = 9,   //< array of TableValues type
-    VT_table = 10,  //< a table type
-    VT_uint8 = 11,  //< 1-byte/char unsigned type
-    VT_uint16 = 12, //< 2-byte/short unsigned type
-    VT_uint32 = 13, //< 4-byte/int unsigned type
-    VT_uint64 = 14  //< 8-byte/long long int unsigned type
+    VT_void = 0,        ///< void type
+    VT_bool = 1,        ///< boolean type
+    VT_int8 = 2,        ///< 1-byte/char signed type
+    VT_int16 = 3,       ///< 2-byte/short signed type
+    VT_int32 = 4,       ///< 4-byte/int signed type
+    VT_int64 = 5,       ///< 8-byte/long long int signed type
+    VT_float = 6,       ///< single-precision floating point type
+    VT_double = 7,      ///< double-precision floating point type
+    VT_string = 8,      ///< string type
+    VT_array = 9,       ///< array of TableValues type
+    VT_table = 10,      ///< a table type
+    VT_uint8 = 11,      ///< 1-byte/char unsigned type
+    VT_uint16 = 12,     ///< 2-byte/short unsigned type
+    VT_uint32 = 13,     ///< 4-byte/int unsigned type
+    VT_timestamp = 14,  ///< std::time_t type
   };
 
   /**
@@ -107,105 +110,117 @@ class SIMPLEAMQPCLIENT_EXPORT TableValue {
   /**
    * Construct a boolean table value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(bool value);
 
   /**
    * Construct a 1-byte unsigned integer value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(boost::uint8_t value);
 
   /**
    * Construct a 1-byte signed integer value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(boost::int8_t value);
 
   /**
    * Construct a 2-byte unsigned integer value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(boost::uint16_t value);
 
   /**
    * Construct a 2-byte signed integer value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(boost::int16_t value);
 
   /**
    * Construct a 4-byte unsigned integer value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(boost::uint32_t value);
 
   /**
    * Construct a 4-byte signed integer value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(boost::int32_t value);
 
+ private:
   /**
-   * Construct a 8-byte unsigned integer value
+   * Private
    *
-   * @param value [in] the value
+   * RabbitMQ does not support unsigned 64-bit values in tables,
+   * however, timestamps are used for this.
    */
   TableValue(boost::uint64_t value);
+
+ public:
+  /**
+   * Construct an AMQP timestamp TableValue
+   *
+   * This seconds since epoch.
+   *
+   * @param [in] value the value
+   */
+  static TableValue Timestamp(std::time_t value);
 
   /**
    * Construct a 8-byte signed integer value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(boost::int64_t value);
 
   /**
    * Construct a single-precision floating point value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(float value);
 
   /**
    * Construct a double-precision floating point value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(double value);
 
   /**
    * Construct a character string value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(const char *value);
 
   /**
    * Construct a character string value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(const std::string &value);
 
   /**
    * Construct an array value
    *
-   * @param values [in] the value
+   * @param [in] values the value
    */
   TableValue(const std::vector<TableValue> &values);
 
   /**
    * Construct a Table value
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   TableValue(const Table &value);
 
@@ -296,6 +311,13 @@ class SIMPLEAMQPCLIENT_EXPORT TableValue {
   boost::uint64_t GetUint64() const;
 
   /**
+   * Get the timestamp value
+   *
+   * @returns the value if its a VT_timestamp type, 0 otherwise
+   */
+  std::time_t GetTimestamp() const;
+
+  /**
    * Get the int64 value
    *
    * @returns the value if its a VT_int64 type, 0 otherwise
@@ -310,8 +332,7 @@ class SIMPLEAMQPCLIENT_EXPORT TableValue {
    * of uint64_t is possible, please use GetUint64()
    *
    * @returns an integer number if the ValueType is VT_uint8, VT_int8,
-   * VT_uint16, VT_int16, VT_uint32, VT_int32, VT_uint64
-   * or VT_int64 type, 0 otherwise
+   * VT_uint16, VT_int16, VT_uint32, VT_int32,or VT_int64 type, 0 otherwise.
    */
   boost::int64_t GetInteger() const;
 
@@ -365,105 +386,105 @@ class SIMPLEAMQPCLIENT_EXPORT TableValue {
   /**
    * Set the value as a boolean
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(bool value);
 
   /**
    * Set the value as a uint8_t
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(boost::uint8_t value);
 
   /**
    * Set the value as a int8_t
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(boost::int8_t value);
 
   /**
    * Set the value as a uint16_t
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(boost::uint16_t value);
 
   /**
    * Set the value as a int16_t
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(boost::int16_t value);
 
   /**
    * Set the value as a uint32_t
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(boost::uint32_t value);
 
   /**
    * Set the value as a int32_t
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(boost::int32_t value);
 
   /**
-   * Set teh value as a uint64_t
+   * Set the value as a timestamp.
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
-  void Set(boost::uint64_t value);
+  void SetTimestamp(std::time_t value);
 
   /**
-   * Set teh value as a int64_t
+   * Set the value as a int64_t
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(boost::int64_t value);
 
   /**
    * Set the value as a float
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(float value);
 
   /**
    * Set the value as a double
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(double value);
 
   /**
    * Set the value as a string
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(const char *value);
 
   /**
    * Set the value as a string
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(const std::string &value);
 
   /**
    * Set the value as an array
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(const std::vector<TableValue> &value);
 
   /**
    * Set the value as a table
    *
-   * @param value [in] the value
+   * @param [in] value the value
    */
   void Set(const Table &value);
 

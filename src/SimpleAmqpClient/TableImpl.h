@@ -28,16 +28,16 @@
  * ***** END LICENSE BLOCK *****
  */
 
-#include "SimpleAmqpClient/Table.h"
+#include <amqp.h>
 
 #include <boost/cstdint.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/variant/variant.hpp>
-
+#include <ctime>
 #include <string>
 #include <vector>
 
-#include <amqp.h>
+#include "SimpleAmqpClient/Table.h"
 
 namespace AmqpClient {
 namespace Detail {

@@ -27,14 +27,16 @@
  */
 
 #include "SimpleAmqpClient/Table.h"
-#include "SimpleAmqpClient/TableImpl.h"
-
-#include <boost/variant/get.hpp>
 
 #include <algorithm>
+#include <boost/type_traits/remove_cv.hpp>
+#include <boost/variant/get.hpp>
+#include <ctime>
 #include <iterator>
 #include <limits>
 #include <stdexcept>
+
+#include "SimpleAmqpClient/TableImpl.h"
 
 namespace AmqpClient {
 TableValue::TableValue()
@@ -63,6 +65,10 @@ TableValue::TableValue(boost::int32_t value)
 
 TableValue::TableValue(boost::uint64_t value)
     : m_impl(new Detail::TableValueImpl(value)) {}
+
+TableValue TableValue::Timestamp(std::time_t ts) {
+  return TableValue(static_cast<boost::uint64_t>(ts));
+}
 
 TableValue::TableValue(boost::int64_t value)
     : m_impl(new Detail::TableValueImpl(value)) {}
@@ -131,10 +137,7 @@ TableValue::ValueType TableValue::GetType() const {
   return static_cast<ValueType>(m_impl->m_value.which());
 }
 
-bool TableValue::GetBool() const {
-  return boost::get<bool>(m_impl->m_value);
-}
-
+bool TableValue::GetBool() const { return boost::get<bool>(m_impl->m_value); }
 
 boost::uint8_t TableValue::GetUint8() const {
   return boost::get<boost::uint8_t>(m_impl->m_value);
@@ -160,8 +163,8 @@ boost::int32_t TableValue::GetInt32() const {
   return boost::get<boost::int32_t>(m_impl->m_value);
 }
 
-boost::uint64_t TableValue::GetUint64() const {
-  return boost::get<boost::uint64_t>(m_impl->m_value);
+std::time_t TableValue::GetTimestamp() const {
+  return static_cast<std::time_t>(boost::get<boost::uint64_t>(m_impl->m_value));
 }
 
 boost::int64_t TableValue::GetInt64() const {
@@ -182,14 +185,6 @@ boost::int64_t TableValue::GetInteger() const {
       return GetUint32();
     case VT_int32:
       return GetInt32();
-    case VT_uint64:
-    {
-      const boost::uint64_t value = GetUint64();
-      if (value > std::numeric_limits<int64_t>::max())
-        throw std::overflow_error(
-          "Result of GetUint64() is out of range.");
-      return value;
-    }
     case VT_int64:
       return GetInt64();
     default:
@@ -244,7 +239,9 @@ void TableValue::Set(boost::uint32_t value) { m_impl->m_value = value; }
 
 void TableValue::Set(boost::int32_t value) { m_impl->m_value = value; }
 
-void TableValue::Set(boost::uint64_t value) { m_impl->m_value = value; }
+void TableValue::SetTimestamp(std::time_t value) {
+  m_impl->m_value = static_cast<boost::uint64_t>(value);
+}
 
 void TableValue::Set(boost::int64_t value) { m_impl->m_value = value; }
 
