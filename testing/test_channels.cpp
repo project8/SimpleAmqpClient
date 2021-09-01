@@ -80,12 +80,15 @@ TEST_F(connected_test, channel_publish_returned_mandatory) {
       MessageReturnedException);
 }
 
-TEST_F(connected_test, DISABLED_channel_publish_returned_immediate) {
+TEST_F(connected_test, channel_publish_full_rejected) {
   BasicMessage::ptr_t message = BasicMessage::Create("Test message");
-  std::string queue_name = channel->DeclareQueue("");
+  Table args;
+  args.insert(TableEntry("x-max-length", 0));
+  args.insert(TableEntry("x-overflow", "reject-publish"));
+  std::string queue = channel->DeclareQueue("", false, false, true, true, args);
 
-  EXPECT_THROW(channel->BasicPublish("", queue_name, message, false, true),
-               MessageReturnedException);
+  EXPECT_THROW(channel->BasicPublish("", queue, message),
+               MessageRejectedException);
 }
 
 TEST_F(connected_test, channel_publish_bad_exchange) {
@@ -129,8 +132,9 @@ TEST_F(connected_test, channel_consume_success_timeout) {
 }
 
 TEST(test_channels, big_message) {
-  Channel::ptr_t channel = Channel::Create(connected_test::GetBrokerHost(),
-                                           5672, "guest", "guest", "/", 4096);
+  Channel::OpenOpts opts = connected_test::GetTestOpenOpts();
+  opts.frame_max = 4096;
+  Channel::ptr_t channel = Channel::Open(opts);
   BasicMessage::ptr_t message = BasicMessage::Create(std::string(4099, 'a'));
 
   std::string queue = channel->DeclareQueue("");

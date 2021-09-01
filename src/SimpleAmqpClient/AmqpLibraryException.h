@@ -28,31 +28,48 @@
  * ***** END LICENSE BLOCK *****
  */
 
-#include "SimpleAmqpClient/Util.h"
-
 #include <stdexcept>
 #include <string>
+
+#include "SimpleAmqpClient/Util.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4251 4275)
 #endif
 
+/// @file SimpleAmqpClient/AmqpLibraryException.h
+/// Defines SimpleAmqpClient::AmqpLibraryException
+
 struct amqp_rpc_reply_t_;
 
 namespace AmqpClient {
 
+/**
+ * Errors arising from incorrect usage of this library APIs
+ */
 class SIMPLEAMQPCLIENT_EXPORT AmqpLibraryException : public std::runtime_error {
  public:
+  /**
+   * Factory-construct with an error code
+   */
   static AmqpLibraryException CreateException(int error_code);
+  /**
+   * Factory-construct with an error code and a string context
+   */
   static AmqpLibraryException CreateException(int error_code,
                                               const std::string &context);
 
+  /**
+   * Error code getter
+   */
   int ErrorCode() const { return m_errorCode; }
 
  protected:
+  /** @cond INTERNAL */
   explicit AmqpLibraryException(const std::string &message,
                                 int error_code) throw();
+  /** @endcond@ */
 
  private:
   int m_errorCode;

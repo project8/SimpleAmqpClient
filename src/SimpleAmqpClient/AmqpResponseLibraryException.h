@@ -28,28 +28,36 @@
  * ***** END LICENSE BLOCK *****
  */
 
-#include "SimpleAmqpClient/Util.h"
-
 #include <boost/cstdint.hpp>
 #include <stdexcept>
 #include <string>
+
+#include "SimpleAmqpClient/Util.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4251 4275)
 #endif
 
+/// @file SimpleAmqpClient/AmqpResponseLibraryException.h
+/// Defines AmqpClient::AmqpResponseLibraryException
+
 struct amqp_rpc_reply_t_;
 
 namespace AmqpClient {
 
+/**
+ * `AMQP_RESPONSE_LIBRARY_EXCEPTION`: an RPC response returned a library error
+ */
 class SIMPLEAMQPCLIENT_EXPORT AmqpResponseLibraryException
     : public std::runtime_error {
  public:
+  /// Factory-construct from RPC reply and a string context
   static AmqpResponseLibraryException CreateException(
       const amqp_rpc_reply_t_ &reply, const std::string &context);
 
  protected:
+  /// Construct an instance with exact message
   explicit AmqpResponseLibraryException(const std::string &message) throw();
 };
 

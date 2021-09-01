@@ -32,24 +32,24 @@
 #include <amqp.h>
 #include <amqp_framing.h>
 
+#include <boost/array.hpp>
+
 #include "SimpleAmqpClient/AmqpException.h"
 #include "SimpleAmqpClient/BasicMessage.h"
+#include "SimpleAmqpClient/Channel.h"
 #include "SimpleAmqpClient/ConsumerCancelledException.h"
 #include "SimpleAmqpClient/Envelope.h"
 #include "SimpleAmqpClient/MessageReturnedException.h"
-
-#include <boost/array.hpp>
+#define BOOST_BIND_GLOBAL_PLACEHOLDERS
 #include <boost/bind.hpp>
 #include <boost/chrono.hpp>
 #include <boost/noncopyable.hpp>
-
 #include <map>
 #include <vector>
 
 namespace AmqpClient {
-namespace Detail {
 
-class ChannelImpl : boost::noncopyable {
+class Channel::ChannelImpl : boost::noncopyable {
  public:
   ChannelImpl();
   virtual ~ChannelImpl();
@@ -60,7 +60,8 @@ class ChannelImpl : boost::noncopyable {
   typedef channel_map_t::iterator channel_map_iterator_t;
 
   void DoLogin(const std::string &username, const std::string &password,
-               const std::string &vhost, int frame_max);
+               const std::string &vhost, int frame_max,
+               bool sasl_external = false);
   amqp_channel_t GetChannel();
   void ReturnChannel(amqp_channel_t channel);
   bool IsChannelOpen(amqp_channel_t channel);
@@ -364,6 +365,5 @@ class ChannelImpl : boost::noncopyable {
   bool m_is_connected;
 };
 
-}  // namespace Detail
 }  // namespace AmqpClient
 #endif  // SIMPLEAMQPCLIENT_CHANNELIMPL_H

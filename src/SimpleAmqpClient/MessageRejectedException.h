@@ -1,5 +1,5 @@
-#ifndef SIMPLEAMQPCLIENT_CONSUMERTAGNOTFOUND_H
-#define SIMPLEAMQPCLIENT_CONSUMERTAGNOTFOUND_H
+#ifndef SIMPLEAMQPCLIENT_MESSAGEREJECTEDEXCEPTION_H
+#define SIMPLEAMQPCLIENT_MESSAGEREJECTEDEXCEPTION_H
 /*
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MIT
@@ -28,34 +28,43 @@
  * ***** END LICENSE BLOCK *****
  */
 
+#include <boost/cstdint.hpp>
+#include <boost/lexical_cast.hpp>
 #include <stdexcept>
 
-#include "Util.h"
+#include "SimpleAmqpClient/BasicMessage.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4251 4275)
 #endif
 
-/// @file SimpleAmqpClient/ConsumerTagNotFoundException.h
-/// Defines AmqpClient::ConsumerTagNotFoundException
+/// @file SimpleAmqpClient/MessageReturnedException.h
+/// Defines AmqpClient::MessageReturnedException
 
 namespace AmqpClient {
 
-/**
- * "Consumer tag not found" exception
- *
- * @see BasicConsume
- */
-class SIMPLEAMQPCLIENT_EXPORT ConsumerTagNotFoundException
+/// "Message rejected" exception
+class SIMPLEAMQPCLIENT_EXPORT MessageRejectedException
     : public std::runtime_error {
  public:
-  /// Constructor
-  ConsumerTagNotFoundException() throw()
-      : std::runtime_error("The specified consumer tag is unknown") {}
-  /// Destructor
-  virtual ~ConsumerTagNotFoundException() throw() {}
+  MessageRejectedException(uint64_t delivery_tag)
+      : std::runtime_error(
+            std::string("Message rejected: ")
+                .append(boost::lexical_cast<std::string>(delivery_tag))),
+        m_delivery_tag(delivery_tag) {}
+
+  /// `delivery_tag` getter
+  uint64_t GetDeliveryTag() { return m_delivery_tag; }
+
+ private:
+  uint64_t m_delivery_tag;
 };
 
 }  // namespace AmqpClient
-#endif  // SIMPLEAMQPCLIENT_CONSUMERTAGNOTFOUND_H
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
+#endif  // SIMPLEAMQPCLIENT_MESSAGEREJECTEDEXCEPTION_H

@@ -32,15 +32,13 @@
 
 #include "SimpleAmqpClient/TableImpl.h"
 
-#include <boost/foreach.hpp>
-#include <boost/variant/apply_visitor.hpp>
-#include <boost/variant/static_visitor.hpp>
-
 #include <amqp.h>
-
 #include <string.h>
 
 #include <algorithm>
+#include <boost/foreach.hpp>
+#include <boost/variant/apply_visitor.hpp>
+#include <boost/variant/static_visitor.hpp>
 #include <new>
 
 #ifdef _MSC_VER
@@ -116,7 +114,7 @@ amqp_field_value_t TableValueImpl::generate_field_value::operator()(
 amqp_field_value_t TableValueImpl::generate_field_value::operator()(
     const boost::uint64_t value) const {
   amqp_field_value_t v;
-  v.kind = AMQP_FIELD_KIND_U64;
+  v.kind = AMQP_FIELD_KIND_TIMESTAMP;
   v.value.u64 = value;
   return v;
 }
@@ -261,7 +259,6 @@ TableValue TableValueImpl::CreateTableValue(const amqp_field_value_t &entry) {
       return TableValue(entry.value.u32);
     case AMQP_FIELD_KIND_I32:
       return TableValue(entry.value.i32);
-    case AMQP_FIELD_KIND_U64:
     case AMQP_FIELD_KIND_TIMESTAMP:
       return TableValue(entry.value.u64);
     case AMQP_FIELD_KIND_I64:
@@ -287,6 +284,8 @@ TableValue TableValueImpl::CreateTableValue(const amqp_field_value_t &entry) {
     case AMQP_FIELD_KIND_TABLE:
       return TableValue(CreateTable(entry.value.table));
     case AMQP_FIELD_KIND_DECIMAL:
+    // uint64_t is unsupported by RabbitMQ.
+    case AMQP_FIELD_KIND_U64:
     default:
       return TableValue();
   }
@@ -358,5 +357,5 @@ amqp_field_value_t TableValueImpl::CopyValue(const amqp_field_value_t value,
       return new_value;
   }
 }
-}
+}  // namespace Detail
 }  // namespace AmqpClient

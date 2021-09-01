@@ -26,10 +26,10 @@
  * ***** END LICENSE BLOCK *****
  */
 
-#include "connected_test.h"
-
 #include <SimpleAmqpClient/SimpleAmqpClient.h>
 #include <gtest/gtest.h>
+
+#include "connected_test.h"
 
 TEST_F(connected_test, declare_exchange_defaults) {
   channel->DeclareExchange("declare_defaults");
@@ -51,12 +51,21 @@ TEST_F(connected_test, declare_exchange_topic) {
   channel->DeleteExchange("declare_topic");
 }
 
+TEST_F(connected_test, check_exchange_exists_succeeds) {
+  channel->DeclareExchange("declare_exists");
+  EXPECT_TRUE(channel->CheckExchangeExists("declare_exists"));
+}
+
 TEST_F(connected_test, declare_exchange_passive_good) {
   channel->DeclareExchange("declare_passive", Channel::EXCHANGE_TYPE_DIRECT);
   channel->DeclareExchange("declare_passive", Channel::EXCHANGE_TYPE_DIRECT,
                            true);
 
   channel->DeleteExchange("declare_passive");
+}
+
+TEST_F(connected_test, check_exchange_exists_fails) {
+  EXPECT_FALSE(channel->CheckExchangeExists("declare_notexist"));
 }
 
 TEST_F(connected_test, declare_exchange_passive_notexist) {
@@ -103,10 +112,6 @@ TEST_F(connected_test, declare_exchange_autodelete) {
 TEST_F(connected_test, delete_exchange) {
   channel->DeclareExchange("delete_exchange");
   channel->DeleteExchange("delete_exchange");
-}
-
-TEST_F(connected_test, delete_exchange_notexist) {
-  EXPECT_THROW(channel->DeleteExchange("exchange_notexist"), ChannelException);
 }
 
 TEST_F(connected_test, delete_exhange_ifunused) {
@@ -156,10 +161,4 @@ TEST_F(connected_test, unbind_exchange) {
 
   channel->DeleteExchange("exchange_bind_dest");
   channel->DeleteExchange("exchange_bind_src");
-}
-
-TEST_F(connected_test, unbind_exchange_badbinding) {
-  EXPECT_THROW(channel->UnbindExchange("exchange_notexist", "exchange_notexist",
-                                       "notexist"),
-               ChannelException);
 }
